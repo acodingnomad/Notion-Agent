@@ -1,0 +1,27 @@
+{
+  "name": "brand-deal-agent",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "schedule": "node src/schedule.js",
+    "schedule:install": "cp launchd/com.brand-deal-agent.schedule.plist ~/Library/LaunchAgents/ && launchctl load ~/Library/LaunchAgents/com.brand-deal-agent.schedule.plist",
+    "schedule:uninstall": "launchctl unload ~/Library/LaunchAgents/com.brand-deal-agent.schedule.plist && rm ~/Library/LaunchAgents/com.brand-deal-agent.schedule.plist",
+    "schedule:status": "launchctl list | grep brand-deal-agent",
+    "schedule:logs": "tail -f ~/Library/Logs/brand-deal-agent.log",
+    "auth": "node src/auth.js",
+    "audit": "node src/audit.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "Extracts brand deal fields from Gmail emails using Claude and writes them to Notion",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
+    "@notionhq/client": "^5.11.0",
+    "dotenv": "^17.3.1",
+    "googleapis": "^171.4.0",
+    "node-cron": "^4.2.1"
+  }
+}
