@@ -14,6 +14,17 @@ const filterArg = process.argv.find((a) => a.startsWith("--filter="));
 const filter = filterArg ? filterArg.split("=")[1] : null;
 
 export async function main() {
+  const required = [
+    "GMAIL_CLIENT_ID", "GMAIL_CLIENT_SECRET",
+    "GMAIL_REDIRECT_URI", "GMAIL_REFRESH_TOKEN",
+    "ANTHROPIC_API_KEY", "NOTION_API_KEY", "NOTION_DATABASE_ID",
+  ];
+  const missing = required.filter((k) => !process.env[k]);
+  if (missing.length) {
+    console.error(`Missing required env vars: ${missing.join(", ")}`);
+    process.exit(1);
+  }
+
   const gmail = createGmailClient({
     clientId: process.env.GMAIL_CLIENT_ID,
     clientSecret: process.env.GMAIL_CLIENT_SECRET,
