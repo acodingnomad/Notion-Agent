@@ -42,7 +42,7 @@ export async function getEmailsByLabel(gmail, labelId) {
     const date = headers.find((h) => h.name === "Date")?.value || "";
     const body = extractBody(full.data.payload);
 
-    emails.push({ id: msg.id, subject, from, date, body });
+    emails.push({ id: msg.id, threadId: full.data.threadId, subject, from, date, body });
   }
 
   return emails;

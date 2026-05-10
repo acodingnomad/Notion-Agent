@@ -11,7 +11,8 @@
     "schedule:status": "launchctl list | grep brand-deal-agent",
     "schedule:logs": "tail -f ~/Library/Logs/brand-deal-agent.log",
     "auth": "node src/auth.js",
-    "audit": "node src/audit.js"
+    "audit": "node src/audit.js",
+    "test": "node --test src/*.test.js"
   },
   "keywords": [],
   "author": "",

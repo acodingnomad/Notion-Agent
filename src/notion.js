@@ -12,7 +12,7 @@ export function createNotionClient(apiKey) {
   return new Client({ auth: apiKey });
 }
 
-export async function dealExistsInNotion(apiKey, databaseId, gmailId, title) {
+export async function dealExistsInNotion(apiKey, databaseId, gmailId) {
   const response = await fetch(
     `https://api.notion.com/v1/databases/${databaseId}/query`,
     {
@@ -24,10 +24,8 @@ export async function dealExistsInNotion(apiKey, databaseId, gmailId, title) {
       },
       body: JSON.stringify({
         filter: {
-          or: [
-            { property: "Gmail ID", rich_text: { equals: gmailId } },
-            { property: "Name", title: { equals: title } },
-          ],
+          property: "Gmail ID",
+          rich_text: { equals: gmailId },
         },
       }),
     }
@@ -63,13 +61,67 @@ export async function writeDealToNotion(notion, databaseId, deal, gmailId, optio
   }
 
   if (date) {
-    properties.Date = { date: { start: date } };
+    properties["Posting Date"] = { date: { start: date } };
   }
 
   return notion.pages.create({
     parent: { database_id: databaseId },
     properties,
   });
+}
+
+export async function getExistingBrandEntries(apiKey, databaseId, brandName, emailDate) {
+  const date = new Date(emailDate);
+  const before = new Date(date);
+  before.setDate(before.getDate() - 90);
+  const after = new Date(date);
+  after.setDate(after.getDate() + 90);
+
+  const startDate = before.toISOString().split("T")[0];
+  const endDate = after.toISOString().split("T")[0];
+
+  const entries = [];
+  let cursor;
+
+  do {
+    const body = {
+      filter: {
+        and: [
+          { property: "Name", title: { contains: brandName } },
+          { property: "Posting Date", date: { on_or_after: startDate } },
+          { property: "Posting Date", date: { on_or_before: endDate } },
+        ],
+      },
+    };
+    if (cursor) body.start_cursor = cursor;
+
+    const response = await fetch(
+      `https://api.notion.com/v1/databases/${databaseId}/query`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "Notion-Version": "2022-06-28",
+        },
+        body: JSON.stringify(body),
+      }
+    );
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(`Notion API error (${response.status}): ${data.message}`);
+    }
+
+    for (const page of data.results) {
+      const name = (page.properties?.Name?.title || []).map((t) => t.plain_text).join("");
+      const contentType = page.properties?.["Type of Content"]?.select?.name || null;
+      entries.push({ name, contentType });
+    }
+
+    cursor = data.has_more ? data.next_cursor : undefined;
+  } while (cursor);
+
+  return entries;
 }
 
 export async function queryNotionByDateRange(apiKey, databaseId, startDate, endDate) {
@@ -80,8 +132,8 @@ export async function queryNotionByDateRange(apiKey, databaseId, startDate, endD
     const body = {
       filter: {
         and: [
-          { property: "Date", date: { on_or_after: startDate } },
-          { property: "Date", date: { on_or_before: endDate } },
+          { property: "Posting Date", date: { on_or_after: startDate } },
+          { property: "Posting Date", date: { on_or_before: endDate } },
         ],
       },
     };
