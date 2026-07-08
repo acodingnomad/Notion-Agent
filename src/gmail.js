@@ -48,6 +48,53 @@ export async function getEmailsByLabel(gmail, labelId) {
   return emails;
 }
 
+// Returns the unique thread IDs present under a label.
+export async function getThreadIdsByLabel(gmail, labelId) {
+  const ids = new Set();
+  let pageToken;
+  do {
+    const res = await gmail.users.messages.list({
+      userId: "me",
+      labelIds: [labelId],
+      pageToken,
+    });
+    for (const msg of res.data.messages || []) {
+      if (msg.threadId) ids.add(msg.threadId);
+    }
+    pageToken = res.data.nextPageToken;
+  } while (pageToken);
+  return [...ids];
+}
+
+// Returns every message in a thread, oldest first, with sender/date/body.
+export async function getThreadMessages(gmail, threadId) {
+  const res = await gmail.users.threads.get({
+    userId: "me",
+    id: threadId,
+    format: "full",
+  });
+
+  const messages = (res.data.messages || []).map((m) => {
+    const headers = m.payload?.headers || [];
+    const header = (name) =>
+      headers.find((h) => h.name.toLowerCase() === name.toLowerCase())?.value || "";
+    return {
+      id: m.id,
+      threadId,
+      subject: header("Subject"),
+      from: header("From"),
+      to: header("To"),
+      cc: header("Cc"),
+      date: header("Date"),
+      internalDate: m.internalDate ? Number(m.internalDate) : 0,
+      body: extractBody(m.payload),
+    };
+  });
+
+  messages.sort((a, b) => a.internalDate - b.internalDate);
+  return messages;
+}
+
 function extractBody(payload) {
   if (payload.body?.data) {
     return Buffer.from(payload.body.data, "base64").toString("utf-8");

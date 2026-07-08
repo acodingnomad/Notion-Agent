@@ -2,8 +2,11 @@ name: Check Brand Deals
 
 on:
   schedule:
-    # 17:00 UTC = 9:00 AM PST (winter) / 10:00 AM PDT (summer). GitHub Actions cron is UTC-only.
-    - cron: '0 17 * * *'
+    # GitHub Actions cron is UTC-only. Times below target PST (UTC-8); during
+    # PDT (summer, UTC-7) they land one hour later (10 AM / 3 PM).
+    # 17:00 UTC = 9:00 AM PST (morning run)
+    # 22:00 UTC = 2:00 PM PST (afternoon run)
+    - cron: '0 17,22 * * *'
   workflow_dispatch:
 
 jobs:

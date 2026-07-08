@@ -12,6 +12,7 @@
     "schedule:logs": "tail -f ~/Library/Logs/brand-deal-agent.log",
     "auth": "node src/auth.js",
     "audit": "node src/audit.js",
+    "sync": "node src/status-sync.js",
     "test": "node --test src/*.test.js"
   },
   "keywords": [],

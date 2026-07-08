@@ -2,6 +2,7 @@ import "dotenv/config";
 import { createGmailClient, getLabelId, getEmailsByLabel } from "./gmail.js";
 import { extractBrandDeal } from "./extract.js";
 import { createNotionClient, writeDealToNotion, dealExistsInNotion, getExistingBrandEntries } from "./notion.js";
+import { syncStatuses } from "./status-sync.js";
 
 function addDays(dateStr, days) {
   const d = new Date(dateStr);
@@ -141,7 +142,7 @@ export async function main() {
         // Filming
         entries.push({
           name: `TO DO: Film ${label}`,
-          contentType: "📸 FILMING DAY",
+          contentType: "FILMING DAY",
           date: filmDate,
           includePrice: false,
           rate: null,
@@ -208,6 +209,13 @@ export async function main() {
     } catch (err) {
       console.error(`  -> Failed for "${email.subject}": ${err.message}`);
     }
+  }
+
+  // Phase 2: sync statuses of existing deals based on thread activity.
+  try {
+    await syncStatuses({ dryRun, filter });
+  } catch (err) {
+    console.error(`Status sync phase failed: ${err.message}`);
   }
 
   console.log("Done.");
