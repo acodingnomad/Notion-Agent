@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { planBrandUpdates } from "./status-sync.js";
+import { planBrandUpdates, planNotionCascades } from "./status-sync.js";
 
 const noSignals = {
   script_requested: false,
@@ -126,5 +126,55 @@ describe("planBrandUpdates", () => {
       pages
     );
     assert.equal(statusChanges[0].to, "Done");
+  });
+});
+
+describe("planNotionCascades", () => {
+  it("Filming Done cascades the matching-name Draft to 'Ready for editing'", () => {
+    const pages = [
+      page("f1", "TO DO: Film Flodesk 1", "FILMING DAY", "Done"),
+      page("d1", "Flodesk 1 Draft", "DRAFT DUE", "Not started"),
+      page("d2", "Flodesk 2 Draft", "DRAFT DUE", "Not started"),
+    ];
+    const changes = planNotionCascades(pages);
+    assert.equal(changes.length, 1);
+    assert.equal(changes[0].page.id, "d1");
+    assert.equal(changes[0].to, "Ready for editing");
+  });
+
+  it("is forward-only (won't touch a Draft already past 'Ready for editing')", () => {
+    const pages = [
+      page("f1", "TO DO: Film Flodesk 1", "FILMING DAY", "Done"),
+      page("d1", "Flodesk 1 Draft", "DRAFT DUE", "Awaiting approval"),
+    ];
+    assert.equal(planNotionCascades(pages).length, 0);
+  });
+
+  it("does not cascade Script Done to Filming (that is agency-email driven)", () => {
+    const pages = [
+      page("s", "Flodesk Script", "SCRIPT", "Done"),
+      page("f1", "TO DO: Film Flodesk 1", "FILMING DAY", "Not started"),
+    ];
+    assert.equal(planNotionCascades(pages).length, 0);
+  });
+
+  it("Draft Done cascades the matching Post to 'Ready to post'", () => {
+    const pages = [
+      page("d1", "Flodesk 1 Draft", "DRAFT DUE", "Done"),
+      page("p1", "Flodesk 1 Post", "BRAND POST", "Not started"),
+      page("p2", "Flodesk 2 Post", "BRAND POST", "Not started"),
+    ];
+    const changes = planNotionCascades(pages);
+    assert.equal(changes.length, 1);
+    assert.equal(changes[0].page.id, "p1");
+    assert.equal(changes[0].to, "Ready to post");
+  });
+
+  it("does nothing when no page is marked Done", () => {
+    const pages = [
+      page("f1", "TO DO: Film Flodesk 1", "FILMING DAY", "Ready to film"),
+      page("d1", "Flodesk 1 Draft", "DRAFT DUE", "Not started"),
+    ];
+    assert.equal(planNotionCascades(pages).length, 0);
   });
 });

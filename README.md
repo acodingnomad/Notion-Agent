@@ -7,7 +7,7 @@ It runs in two phases every time it runs:
 1. **Create** — finds new deals in the Gmail `In progress` label and creates the Script / Filming / Draft / Post pages in Notion.
 2. **Status sync** — reads recent replies in each `In progress` thread and moves the matching Notion page statuses forward (Due next → Awaiting approval → Done, etc.), including cascades between stages.
 
-Runs automatically via GitHub Actions **twice a day: 9 AM & 2 PM PST**.
+Runs automatically via GitHub Actions **8 times a day, every ~90 min from 9 AM to 7 PM PST**.
 
 ---
 
@@ -67,7 +67,7 @@ npm run schedule:uninstall  # remove the background service
 
 ## Running it on GitHub (the automatic schedule)
 
-- The schedule lives in `.github/workflows/check-deals.yml` (`cron: '0 17,22 * * *'` = 9 AM & 2 PM PST).
+- The schedule lives in `.github/workflows/check-deals.yml` (8 runs/day: 9:00, 10:30, 12:00, 1:30, 3:00, 4:30, 6:00, 7:00 PM PST).
 - **Run it manually anytime:** GitHub repo → **Actions** tab → **Check Brand Deals** → **Run workflow**.
 - **See what it changed:** same Actions tab → click the latest run → open the logs. Status sync prints each change and the email quote that triggered it.
 
@@ -101,6 +101,13 @@ Who sent the email matters:
 | Agency approves go-live | Draft → `Done`, Post → `Ready to post` |
 | You propose a live date | Post keeps `Ready to post`, sets Posting Date |
 | You share the posted link | Post → `Done` |
+
+**Manual triggers in Notion** (no email needed — you change a status and the next stage advances on the next run):
+
+| You set in Notion | It triggers |
+|---|---|
+| Filming Day → `Done` | matching Draft → `Ready for editing` |
+| Draft → `Done` | matching Post → `Ready to post` |
 
 Safeguards:
 

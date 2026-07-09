@@ -10,6 +10,7 @@ import {
   createNotionClient,
   getBrandStagePages,
   getPagesByGmailIds,
+  getActiveStagePages,
   updatePageStatus,
   updatePagePostingDate,
 } from "./notion.js";
@@ -161,6 +162,69 @@ export function planBrandUpdates(signals, rawPages) {
   return { statusChanges, dateChanges };
 }
 
+// The "deliverable core" is the shared part of a page name across stages, e.g.
+// "TO DO: Film Flodesk 1", "Flodesk 1 Draft", "Flodesk 1 Post" all -> "Flodesk 1".
+// This lets us match sibling pages of the same deliverable reliably by name.
+function deliverableCore(name, stage) {
+  let s = (name || "").trim();
+  if (stage === "FILMING") s = s.replace(/^to\s*do:\s*/i, "").replace(/^film\s+/i, "");
+  else if (stage === "DRAFT") s = s.replace(/\s+draft$/i, "");
+  else if (stage === "POST") s = s.replace(/\s+post$/i, "");
+  else if (stage === "SCRIPT") s = s.replace(/\s+scripts?\b.*$/i, "").replace(/\s+outline\b.*$/i, "");
+  return s.trim().toLowerCase();
+}
+
+// Notion-driven cascades: when YOU set a page's status to "Done" in Notion,
+// advance the next stage. Purely status-based (no email needed), forward-only,
+// matched by exact deliverable name (e.g. "Flodesk 1").
+//   FILMING Done -> DRAFT "Ready for editing"
+//   DRAFT Done   -> POST  "Ready to post"
+// (Script -> Filming is intentionally NOT here: it's driven by agency email
+//  approval, and marking one of several scripts Done shouldn't ready all
+//  filming days.)
+export function planNotionCascades(rawPages) {
+  const pages = rawPages
+    .map((p) => {
+      const stage = stageOf(p.contentType);
+      return { ...p, stage, core: stage ? deliverableCore(p.name, stage) : null };
+    })
+    .filter((p) => p.stage);
+
+  const byStage = { SCRIPT: [], FILMING: [], DRAFT: [], POST: [] };
+  for (const p of pages) byStage[p.stage].push(p);
+
+  const planned = new Map();
+  const propose = (page, target, reason) => {
+    const order = STAGE_ORDER[page.stage];
+    if (!canAdvance(order, page.status, target)) return;
+    const ti = order.indexOf(target);
+    const existing = planned.get(page.id);
+    if (!existing || ti > existing.targetIndex) {
+      planned.set(page.id, { page, order, targetIndex: ti, reason });
+    }
+  };
+
+  for (const f of byStage.FILMING) {
+    if (f.status !== "Done") continue;
+    for (const d of byStage.DRAFT) {
+      if (d.core === f.core) propose(d, "Ready for editing", "filming_done_cascade");
+    }
+  }
+  for (const d of byStage.DRAFT) {
+    if (d.status !== "Done") continue;
+    for (const p of byStage.POST) {
+      if (p.core === d.core) propose(p, "Ready to post", "draft_done_cascade");
+    }
+  }
+
+  return [...planned.values()].map((v) => ({
+    page: v.page,
+    from: v.page.status,
+    to: v.order[v.targetIndex],
+    reason: v.reason,
+  }));
+}
+
 // Messages newer than this many days count as "new" activity to react to.
 const RECENT_DAYS = Number(process.env.SYNC_RECENT_DAYS || 3);
 
@@ -260,6 +324,32 @@ export async function syncStatuses({ dryRun = false, filter = null } = {}) {
     } catch (err) {
       console.error(`  Thread ${threadId} failed: ${err.message}`);
     }
+  }
+
+  // Notion-driven cascades: react to statuses you set manually in Notion
+  // (e.g. Filming -> Done cascades the matching Draft to "Ready for editing").
+  // Scans active deals directly, independent of Gmail.
+  try {
+    const today = new Date();
+    const start = new Date(today);
+    start.setDate(start.getDate() - 120);
+    const end = new Date(today);
+    end.setDate(end.getDate() + 365);
+    const startDate = start.toISOString().split("T")[0];
+    const endDate = end.toISOString().split("T")[0];
+
+    const activePages = await getActiveStagePages(apiKey, databaseId, startDate, endDate);
+    const cascades = planNotionCascades(activePages);
+    if (cascades.length) {
+      console.log(`\n=== Notion status triggers ===`);
+      for (const c of cascades) {
+        console.log(`  ${dryRun ? "[dry run] " : ""}${c.page.name}: "${c.from}" -> "${c.to}"  (${c.reason})`);
+        if (!dryRun) await updatePageStatus(notion, c.page.id, c.to);
+        totalChanges++;
+      }
+    }
+  } catch (err) {
+    console.error(`  Notion cascade pass failed: ${err.message}`);
   }
 
   console.log(`\nStatus sync done. ${totalChanges} change(s)${dryRun ? " (dry run)" : ""}.`);

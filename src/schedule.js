@@ -2,9 +2,15 @@ import "dotenv/config";
 import cron from "node-cron";
 import { main } from "./index.js";
 
-console.log("Scheduler started — running at 9 AM and 2 PM Pacific.");
+console.log("Scheduler started — running 8x/day, every 90 min from 9 AM to 7 PM Pacific.");
 
-cron.schedule("0 9,14 * * *", () => {
+function run() {
   console.log(`[${new Date().toLocaleString()}] Running scheduled scan...`);
   main().catch((err) => console.error("Scheduled run failed:", err));
-}, { timezone: "America/Los_Angeles" });
+}
+
+const tz = { timezone: "America/Los_Angeles" };
+// 9:00, 12:00, 3:00, 6:00, 7:00 PM
+cron.schedule("0 9,12,15,18,19 * * *", run, tz);
+// 10:30, 1:30, 4:30 PM
+cron.schedule("30 10,13,16 * * *", run, tz);

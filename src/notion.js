@@ -187,6 +187,16 @@ export async function getBrandStagePages(apiKey, databaseId, brandName) {
   });
 }
 
+// Fetch active pages (Posting Date within a window) for the cascade pass.
+export async function getActiveStagePages(apiKey, databaseId, startDate, endDate) {
+  return queryDatabase(apiKey, databaseId, {
+    and: [
+      { property: "Posting Date", date: { on_or_after: startDate } },
+      { property: "Posting Date", date: { on_or_before: endDate } },
+    ],
+  });
+}
+
 export async function updatePageStatus(notion, pageId, statusName) {
   return notion.pages.update({
     page_id: pageId,
