@@ -228,13 +228,10 @@ export function planNotionCascades(rawPages) {
 // Messages newer than this many days count as "new" activity to react to.
 const RECENT_DAYS = Number(process.env.SYNC_RECENT_DAYS || 3);
 
-// Pick which messages count as "new". Anything within the window; if nothing is
-// that recent, fall back to just the single latest message.
-function recentMessageIds(messages, days = RECENT_DAYS) {
+// Messages within the recent window. If none, the thread has no new activity.
+function recentMessages(messages, days = RECENT_DAYS) {
   const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-  const recent = messages.filter((m) => m.internalDate >= cutoff);
-  const chosen = recent.length ? recent : messages.slice(-1);
-  return new Set(chosen.map((m) => m.id));
+  return messages.filter((m) => m.internalDate >= cutoff);
 }
 
 export async function syncStatuses({ dryRun = false, filter = null } = {}) {
@@ -265,11 +262,18 @@ export async function syncStatuses({ dryRun = false, filter = null } = {}) {
       const subject = messages[messages.length - 1].subject;
       if (filter && !subject.toLowerCase().includes(filter.toLowerCase())) continue;
 
+      // Skip threads with no new activity — saves an AI call per quiet thread.
+      const recent = recentMessages(messages);
+      if (recent.length === 0) {
+        console.log(`\n[${subject}]: no new activity in last ${RECENT_DAYS} days, skipping.`);
+        continue;
+      }
+      const recentIds = new Set(recent.map((m) => m.id));
+
       // Match this thread to its Notion pages by Gmail message ID (exact).
       const msgIds = messages.map((m) => m.id);
       let pages = await getPagesByGmailIds(apiKey, databaseId, msgIds);
 
-      const recentIds = recentMessageIds(messages);
       const signals = await classifyThread(messages, recentIds);
       const brand = (signals.brand || "").trim();
 
