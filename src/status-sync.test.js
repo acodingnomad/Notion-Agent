@@ -31,7 +31,7 @@ describe("planBrandUpdates", () => {
   it("script approval sets Script=Done and cascades Filming to 'Ready to film'", () => {
     const pages = [
       page("s", "Acme Script", "SCRIPT", "Awaiting approval"),
-      page("f", "TO DO: Film Acme", "FILMING DAY", "Not started"),
+      page("f", "TO DO: Film Acme", "FILM", "Not started"),
     ];
     const { statusChanges } = planBrandUpdates(
       { ...noSignals, script_approved: true },
@@ -63,7 +63,7 @@ describe("planBrandUpdates", () => {
 
   it("cascades Filming=Done -> matching-number Draft 'Ready for editing'", () => {
     const pages = [
-      page("f1", "TO DO: Film Acme 1", "FILMING DAY", "Done"),
+      page("f1", "TO DO: Film Acme 1", "FILM", "Done"),
       page("d1", "Acme 1 Draft", "DRAFT DUE", "Not started"),
       page("d2", "Acme 2 Draft", "DRAFT DUE", "Not started"),
     ];
@@ -132,7 +132,7 @@ describe("planBrandUpdates", () => {
 describe("planNotionCascades", () => {
   it("Filming Done cascades the matching-name Draft to 'Ready for editing'", () => {
     const pages = [
-      page("f1", "TO DO: Film Flodesk 1", "FILMING DAY", "Done"),
+      page("f1", "TO DO: Film Flodesk 1", "FILM", "Done"),
       page("d1", "Flodesk 1 Draft", "DRAFT DUE", "Not started"),
       page("d2", "Flodesk 2 Draft", "DRAFT DUE", "Not started"),
     ];
@@ -144,7 +144,7 @@ describe("planNotionCascades", () => {
 
   it("is forward-only (won't touch a Draft already past 'Ready for editing')", () => {
     const pages = [
-      page("f1", "TO DO: Film Flodesk 1", "FILMING DAY", "Done"),
+      page("f1", "TO DO: Film Flodesk 1", "FILM", "Done"),
       page("d1", "Flodesk 1 Draft", "DRAFT DUE", "Awaiting approval"),
     ];
     assert.equal(planNotionCascades(pages).length, 0);
@@ -153,7 +153,7 @@ describe("planNotionCascades", () => {
   it("does not cascade Script Done to Filming (that is agency-email driven)", () => {
     const pages = [
       page("s", "Flodesk Script", "SCRIPT", "Done"),
-      page("f1", "TO DO: Film Flodesk 1", "FILMING DAY", "Not started"),
+      page("f1", "TO DO: Film Flodesk 1", "FILM", "Not started"),
     ];
     assert.equal(planNotionCascades(pages).length, 0);
   });
@@ -172,7 +172,7 @@ describe("planNotionCascades", () => {
 
   it("does nothing when no page is marked Done", () => {
     const pages = [
-      page("f1", "TO DO: Film Flodesk 1", "FILMING DAY", "Ready to film"),
+      page("f1", "TO DO: Film Flodesk 1", "FILM", "Ready to film"),
       page("d1", "Flodesk 1 Draft", "DRAFT DUE", "Not started"),
     ];
     assert.equal(planNotionCascades(pages).length, 0);

@@ -142,7 +142,7 @@ export async function main() {
         // Filming
         entries.push({
           name: `TO DO: Film ${label}`,
-          contentType: "FILMING DAY",
+          contentType: "FILM",
           date: filmDate,
           includePrice: false,
           rate: null,

@@ -52,7 +52,7 @@ function parseBrandFromEntry(title, contentType) {
     if (m) return { brand: m[1].trim(), stage: "SCRIPT", number: null };
   }
 
-  if (contentType === "FILMING DAY" || contentType === "📸 FILMING DAY") {
+  if (contentType === "FILM" || contentType === "FILMING DAY" || contentType === "📸 FILMING DAY") {
     const m = title.match(STAGE_PATTERNS.FILMING);
     if (m) return { brand: m[1].trim(), stage: "FILMING", number: m[2] ? parseInt(m[2]) : null };
   }
@@ -230,7 +230,7 @@ function buildEntryName(brand, stage, number) {
 
 const STAGE_CONTENT_TYPES = {
   SCRIPT: "SCRIPT",
-  FILMING: "FILMING DAY",
+  FILMING: "FILM",
   DRAFT: "DRAFT DUE",
   POST: "BRAND POST",
 };

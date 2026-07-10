@@ -33,7 +33,7 @@ function stageOf(contentType) {
   if (!contentType) return null;
   const c = contentType.toUpperCase();
   if (c.includes("SCRIPT")) return "SCRIPT";
-  if (c.includes("FILMING")) return "FILMING";
+  if (c.includes("FILM")) return "FILMING"; // "FILM" (current) or legacy "FILMING DAY"
   if (c.includes("DRAFT")) return "DRAFT";
   if (c.includes("POST")) return "POST";
   return null; // e.g. "Organic Content"
