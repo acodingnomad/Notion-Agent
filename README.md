@@ -1,13 +1,10 @@
 # Notion Brand Deal Agent
 
-Reads brand-deal emails from Gmail and keeps the **Notion Brand Deal Calendar** in sync.
+Reads brand-deal emails from Gmail and adds new deals to the **Notion Brand Deal Calendar**.
 
-It runs in two phases every time it runs:
+**What it does:** finds new deals in the Gmail `In progress` label and creates one entry per post/deliverable in Notion, with `Deal Stage` and `Progress Status` both set to `Not started`. Deal progress after that is handled by native Notion automations — this agent only creates the entries.
 
-1. **Create** — finds new deals in the Gmail `In progress` label and creates the Script / Filming / Draft / Post pages in Notion.
-2. **Status sync** — reads recent replies in each `In progress` thread and moves the matching Notion page statuses forward (Due next → Awaiting approval → Done, etc.), including cascades between stages.
-
-Runs automatically via GitHub Actions **4 times a day: 9 AM, 12 PM, 4 PM, 6 PM PST**. Threads with no new activity in the last few days are skipped (no AI call) to keep costs low.
+Runs automatically via GitHub Actions **4 times a day: 9 AM, 12 PM, 4 PM, 6 PM PST**. Emails already turned into deals are skipped before the AI step to keep costs low.
 
 ---
 
@@ -19,28 +16,16 @@ Run these from the project folder (`Brand Deal Agent`) in Terminal.
 
 | What you want | Command |
 |---|---|
-| Preview status changes (writes nothing) | `npm run sync -- --dry-run` |
-| Run status sync for real (writes to Notion) | `npm run sync` |
-| Run the full agent now: create + sync (live) | `npm start` |
-| Preview the full agent (writes nothing) | `npm start -- --dry-run` |
+| Preview new deals (writes nothing) | `npm start -- --dry-run` |
+| Run the agent now (adds new deals, live) | `npm start` |
 | Run the tests | `npm test` |
 
 ### Focus on one deal
 
-Add `--filter="<brand>"` to only process threads whose subject contains that text:
+Add `--filter="<brand>"` to only process emails whose subject contains that text:
 
 ```bash
-npm run sync -- --dry-run --filter="Indeed"
-npm start -- --dry-run --filter="Atlassian"
-```
-
-### Backfill / audit (fills in missing stage pages)
-
-```bash
-npm run audit                          # report only, no changes
-npm run audit -- --fix --dry-run       # preview what it would create
-npm run audit -- --fix                 # create the missing pages
-npm run audit -- --month=2026-08 --fix # audit a specific month
+npm start -- --dry-run --filter="Indeed"
 ```
 
 ### Gmail authorization (only if login expires)
@@ -56,7 +41,7 @@ Then copy the new refresh token into `.env` as `GMAIL_REFRESH_TOKEN`, and also u
 ### Run on your own Mac on a schedule (optional — GitHub Actions already does this)
 
 ```bash
-npm run schedule            # keep it running in a terminal (9 AM & 2 PM PST)
+npm run schedule            # keep it running in a terminal (9 AM, 12 PM, 4 PM, 6 PM PST)
 npm run schedule:install    # install as a background service (launchd)
 npm run schedule:status     # check the background service
 npm run schedule:logs       # tail the logs
@@ -69,7 +54,25 @@ npm run schedule:uninstall  # remove the background service
 
 - The schedule lives in `.github/workflows/check-deals.yml` (4 runs/day: 9 AM, 12 PM, 4 PM, 6 PM PST).
 - **Run it manually anytime:** GitHub repo → **Actions** tab → **Check Brand Deals** → **Run workflow**.
-- **See what it changed:** same Actions tab → click the latest run → open the logs. Status sync prints each change and the email quote that triggered it.
+- **See what it added:** same Actions tab → click the latest run → open the logs.
+
+---
+
+## How a new deal is created
+
+For each new email in the `In progress` label, the agent uses AI to extract the brand, platforms, rate, posting date, deliverables, and number of posts, then creates one Notion entry per post:
+
+| Property | Value |
+|---|---|
+| Name | `{Brand} Post` (or `{Brand} 1 Post`, `{Brand} 2 Post`, … for multi-post deals) |
+| Deal Stage | `Not started` |
+| Progress Status | `Not started` |
+| Platforms | extracted from the email (Story rides on post 1) |
+| Price | per-post rate × 0.8 |
+| Posting Date | from the email, or ~2 weeks out, spaced a week apart per post |
+| Deliverables / Gmail ID | filled in for reference + de-duplication |
+
+Duplicate protection: the exact email is skipped if it was already turned into a deal (`Gmail ID` match), and entries whose name already exists for that brand are not recreated.
 
 ---
 
@@ -78,40 +81,5 @@ npm run schedule:uninstall  # remove the background service
 | Variable | Meaning | Default |
 |---|---|---|
 | `GMAIL_LABEL` | Gmail label to watch | `In progress` |
-| `SYNC_RECENT_DAYS` | Only react to email activity newer than this many days | `3` |
 
 Everything else in `.env` is credentials (Gmail, Anthropic, Notion) — keep them secret. `.env` is gitignored and never committed.
-
----
-
-## How status sync decides what to change
-
-Who sent the email matters:
-
-- **Agency** = `teresa@` / `patrick@thedriveagency.co`
-- **You** = `codingnomadpr@`, `khristinasar@`, `khrissheer@gmail.com`
-
-| Trigger | Result |
-|---|---|
-| Agency asks for the script | Script → `Due next` |
-| You send the script link | Script → `Awaiting approval` |
-| Agency approves the script | Script → `Done`, Filming → `Ready to film` |
-| You mark Filming `Done` in Notion | Draft → `Ready for editing` |
-| You send the draft link | Draft → `Awaiting approval` |
-| Agency approves go-live | Draft → `Done`, Post → `Ready to post` |
-| You propose a live date | Post keeps `Ready to post`, sets Posting Date |
-| You share the posted link | Post → `Done` |
-
-**Manual triggers in Notion** (no email needed — you change a status and the next stage advances on the next run):
-
-| You set in Notion | It triggers |
-|---|---|
-| Filming Day → `Done` | matching Draft → `Ready for editing` |
-| Draft → `Done` | matching Post → `Ready to post` |
-
-Safeguards:
-
-- **Forward-only** — statuses never move backward. Manual states like `Update requested` / `Scheduled` are left alone.
-- **Recent activity only** — old thread history is used as context but never re-applied.
-- **Post-number aware** — a signal about "Concept 3" / "Video 1" lands on the right page.
-- If it ever sets something wrong (e.g. a wrong `Done`), just fix that page manually in Notion.

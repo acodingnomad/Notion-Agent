@@ -79,21 +79,19 @@ describe("getExistingBrandEntries", () => {
     });
   });
 
-  it("returns array of {name, contentType} parsed from page properties", async () => {
+  it("returns the names of matching pages", async () => {
     globalThis.fetch = mock.fn(async () => ({
       ok: true,
       json: async () => ({
         results: [
           {
             properties: {
-              Name: { title: [{ plain_text: "Omnisend " }, { plain_text: "Script" }] },
-              "Type of Content": { select: { name: "SCRIPT" } },
+              Name: { title: [{ plain_text: "Omnisend " }, { plain_text: "1 Post" }] },
             },
           },
           {
             properties: {
-              Name: { title: [{ plain_text: "Omnisend Post" }] },
-              "Type of Content": { select: { name: "BRAND POST" } },
+              Name: { title: [{ plain_text: "Omnisend 2 Post" }] },
             },
           },
         ],
@@ -101,10 +99,7 @@ describe("getExistingBrandEntries", () => {
     }));
 
     const entries = await getExistingBrandEntries("fake-key", "fake-db", "Omnisend", "2025-06-15");
-    assert.deepStrictEqual(entries, [
-      { name: "Omnisend Script", contentType: "SCRIPT" },
-      { name: "Omnisend Post", contentType: "BRAND POST" },
-    ]);
+    assert.deepStrictEqual(entries, ["Omnisend 1 Post", "Omnisend 2 Post"]);
   });
 
   it("returns empty array when no matching pages", async () => {
@@ -133,8 +128,7 @@ describe("getExistingBrandEntries", () => {
             results: [
               {
                 properties: {
-                  Name: { title: [{ plain_text: "Omnisend Script" }] },
-                  "Type of Content": { select: { name: "SCRIPT" } },
+                  Name: { title: [{ plain_text: "Omnisend 1 Post" }] },
                 },
               },
             ],
@@ -148,8 +142,7 @@ describe("getExistingBrandEntries", () => {
           results: [
             {
               properties: {
-                Name: { title: [{ plain_text: "Omnisend Post" }] },
-                "Type of Content": { select: { name: "BRAND POST" } },
+                Name: { title: [{ plain_text: "Omnisend 2 Post" }] },
               },
             },
           ],

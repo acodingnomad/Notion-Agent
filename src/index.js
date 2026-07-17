@@ -2,7 +2,6 @@ import "dotenv/config";
 import { createGmailClient, getLabelId, getEmailsByLabel } from "./gmail.js";
 import { extractBrandDeal } from "./extract.js";
 import { createNotionClient, writeDealToNotion, dealExistsInNotion, getExistingBrandEntries } from "./notion.js";
-import { syncStatuses } from "./status-sync.js";
 
 function addDays(dateStr, days) {
   const d = new Date(dateStr);
@@ -79,6 +78,16 @@ export async function main() {
         continue;
       }
 
+      // Skip early (before the AI extraction call) if this exact email was
+      // already turned into a deal — saves tokens on unchanged threads.
+      if (!dryRun) {
+        const exists = await dealExistsInNotion(process.env.NOTION_API_KEY, databaseId, email.id);
+        if (exists) {
+          console.log(`  -> Already in Notion (Gmail ID match), skipping.`);
+          continue;
+        }
+      }
+
       const deal = await extractBrandDeal(email);
 
       // Layer 2: Skip if we already processed this brand in this run
@@ -87,29 +96,15 @@ export async function main() {
         console.log(`  -> Brand "${deal.brand}" already processed this run, skipping.`);
         continue;
       }
+      if (brandKey) processedBrands.add(brandKey);
 
+      const brand = deal.brand || "Unknown";
       const postCount = deal.post_count || 1;
       const perPostRate = deal.rate ? deal.rate / postCount : null;
       const baseDate = deal.posting_date || addDays(email.date, 14);
 
-      if (!dryRun) {
-        // Existing check: exact Gmail ID match
-        const exists = await dealExistsInNotion(process.env.NOTION_API_KEY, databaseId, email.id);
-        if (exists) {
-          console.log(`  -> Already in Notion (Gmail ID match), skipping.`);
-          continue;
-        }
-      }
-
-      // Mark brand as processed for Layer 2
-      if (brandKey) processedBrands.add(brandKey);
-
-      const brand = deal.brand || "Unknown";
-      const today = new Date().toISOString().split("T")[0];
-      const scriptDate = addDays(today, 7);
-
       // Per-post platforms: when an Instagram Story rides alongside video posts,
-      // it attaches to post 1 only. Story-only or video-only deals get the full list everywhere.
+      // it attaches to post 1 only. Story-only or video-only deals get the full list.
       const STORY = "Instagram Story";
       const allPlatforms = deal.platforms || [];
       const nonStoryPlatforms = allPlatforms.filter((p) => p !== STORY);
@@ -117,71 +112,28 @@ export async function main() {
       const platformsForPost = (i) =>
         storyRidesOnPost ? (i === 0 ? allPlatforms : nonStoryPlatforms) : allPlatforms;
 
-      // Define all entries to create
+      // One entry per post/deliverable. Stage + progress are tracked on the
+      // single entry (and advanced natively in Notion), so we just seed both
+      // to "Not started".
       const entries = [];
-
-      // 1 Script (shared, not per-post) — gets the union of platforms
-      entries.push({
-        name: `${brand} Script`,
-        contentType: "SCRIPT",
-        date: scriptDate,
-        includePrice: false,
-        rate: null,
-        platforms: allPlatforms,
-      });
-
       for (let i = 0; i < postCount; i++) {
         const label = postCount > 1 ? `${brand} ${i + 1}` : brand;
-        const filmDate = addDays(scriptDate, 7 + i * 7);
-        const draftDate = addDays(filmDate, 1);
-        const postDate = draftDate > addDays(baseDate, i * 7)
-          ? addDays(draftDate, 7)
-          : addDays(baseDate, i * 7);
-        const postPlatforms = platformsForPost(i);
-
-        // Filming
-        entries.push({
-          name: `TO DO: Film ${label}`,
-          contentType: "FILM",
-          date: filmDate,
-          includePrice: false,
-          rate: null,
-          platforms: postPlatforms,
-        });
-
-        // Draft
-        entries.push({
-          name: `${label} Draft`,
-          contentType: "DRAFT DUE",
-          date: draftDate,
-          includePrice: false,
-          rate: null,
-          platforms: postPlatforms,
-        });
-
-        // Post
         entries.push({
           name: `${label} Post`,
-          contentType: "BRAND POST",
-          date: postDate,
-          includePrice: true,
+          date: addDays(baseDate, i * 7),
           rate: perPostRate,
-          platforms: postPlatforms,
+          platforms: platformsForPost(i),
         });
       }
 
-      // Gap-fill: only write entries whose (name, contentType) isn't already in Notion for this brand
+      // Gap-fill: only write entries whose name isn't already in Notion for this brand.
       let entriesToWrite = entries;
       if (!dryRun && brandKey) {
-        const existing = await getExistingBrandEntries(
-          process.env.NOTION_API_KEY, databaseId, deal.brand, email.date
+        const existingNames = new Set(
+          (await getExistingBrandEntries(process.env.NOTION_API_KEY, databaseId, deal.brand, email.date))
+            .map((n) => n.toLowerCase())
         );
-        const existingKeys = new Set(
-          existing.map((e) => `${(e.name || "").toLowerCase()}::${(e.contentType || "").toLowerCase()}`)
-        );
-        entriesToWrite = entries.filter(
-          (e) => !existingKeys.has(`${e.name.toLowerCase()}::${e.contentType.toLowerCase()}`)
-        );
+        entriesToWrite = entries.filter((e) => !existingNames.has(e.name.toLowerCase()));
         if (entriesToWrite.length === 0) {
           console.log(`  -> All entries already exist for "${brand}", skipping.`);
           continue;
@@ -191,17 +143,14 @@ export async function main() {
         }
       }
 
-      // Write entries
       for (const entry of entriesToWrite) {
         const entryDeal = { ...deal, rate: entry.rate, platforms: entry.platforms ?? deal.platforms };
         if (dryRun) {
-          console.log(`  -> [dry run] ${entry.name} | ${entry.contentType} | ${entry.date} | platforms: [${(entry.platforms || []).join(", ")}] | price: ${entry.includePrice}`);
+          console.log(`  -> [dry run] ${entry.name} | ${entry.date} | platforms: [${(entry.platforms || []).join(", ")}] | price: ${entry.rate != null}`);
         } else {
           await writeDealToNotion(notion, databaseId, entryDeal, email.id, {
             name: entry.name,
-            contentType: entry.contentType,
             date: entry.date,
-            includePrice: entry.includePrice,
           });
           console.log(`  -> Written: ${entry.name}`);
         }
@@ -209,13 +158,6 @@ export async function main() {
     } catch (err) {
       console.error(`  -> Failed for "${email.subject}": ${err.message}`);
     }
-  }
-
-  // Phase 2: sync statuses of existing deals based on thread activity.
-  try {
-    await syncStatuses({ dryRun, filter });
-  } catch (err) {
-    console.error(`Status sync phase failed: ${err.message}`);
   }
 
   console.log("Done.");
