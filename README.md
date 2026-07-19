@@ -4,7 +4,7 @@ Reads brand-deal emails from Gmail and adds new deals to the **Notion Brand Deal
 
 **What it does:** finds new deals in the Gmail `In progress` label and creates one entry per post/deliverable in Notion, with `Deal Stage` and `Progress Status` both set to `Not started`. Deal progress after that is handled by native Notion automations — this agent only creates the entries.
 
-Runs automatically via GitHub Actions **4 times a day: 9 AM, 12 PM, 4 PM, 6 PM PST**. Emails already turned into deals are skipped before the AI step to keep costs low.
+Runs automatically via GitHub Actions **twice a day: 9 AM and 5 PM PST**. Emails already turned into deals are skipped before the AI step to keep costs low.
 
 ---
 
@@ -41,7 +41,7 @@ Then copy the new refresh token into `.env` as `GMAIL_REFRESH_TOKEN`, and also u
 ### Run on your own Mac on a schedule (optional — GitHub Actions already does this)
 
 ```bash
-npm run schedule            # keep it running in a terminal (9 AM, 12 PM, 4 PM, 6 PM PST)
+npm run schedule            # keep it running in a terminal (9 AM & 5 PM PST)
 npm run schedule:install    # install as a background service (launchd)
 npm run schedule:status     # check the background service
 npm run schedule:logs       # tail the logs
@@ -52,7 +52,7 @@ npm run schedule:uninstall  # remove the background service
 
 ## Running it on GitHub (the automatic schedule)
 
-- The schedule lives in `.github/workflows/check-deals.yml` (4 runs/day: 9 AM, 12 PM, 4 PM, 6 PM PST).
+- The schedule lives in `.github/workflows/check-deals.yml` (2 runs/day: 9 AM & 5 PM PST).
 - **Run it manually anytime:** GitHub repo → **Actions** tab → **Check Brand Deals** → **Run workflow**.
 - **See what it added:** same Actions tab → click the latest run → open the logs.
 

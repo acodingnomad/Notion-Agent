@@ -4,9 +4,9 @@ on:
   schedule:
     # GitHub Actions cron is UTC-only. Times below target PST (UTC-8); during
     # PDT (summer, UTC-7) they land one hour later.
-    # 4 runs/day: 9 AM, 12 PM, 4 PM, 6 PM PST
-    #   -> UTC 17:00, 20:00, 00:00, 02:00
-    - cron: '0 0,2,17,20 * * *'
+    # 2 runs/day: 9 AM, 5 PM PST
+    #   -> UTC 17:00, 01:00
+    - cron: '0 1,17 * * *'
   workflow_dispatch:
 
 jobs:
