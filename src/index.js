@@ -119,7 +119,7 @@ export async function main() {
       for (let i = 0; i < postCount; i++) {
         const label = postCount > 1 ? `${brand} ${i + 1}` : brand;
         entries.push({
-          name: `${label} Post`,
+          name: label,
           date: addDays(baseDate, i * 7),
           rate: perPostRate,
           platforms: platformsForPost(i),

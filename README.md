@@ -64,7 +64,7 @@ For each new email in the `In progress` label, the agent uses AI to extract the 
 
 | Property | Value |
 |---|---|
-| Name | `{Brand} Post` (or `{Brand} 1 Post`, `{Brand} 2 Post`, … for multi-post deals) |
+| Name | `{Brand}` (or `{Brand} 1`, `{Brand} 2`, … for multi-post deals) |
 | Deal Stage | `Not started` |
 | Progress Status | `Not started` |
 | Platforms | extracted from the email (Story rides on post 1) |

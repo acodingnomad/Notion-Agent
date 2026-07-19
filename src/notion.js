@@ -39,7 +39,7 @@ export async function dealExistsInNotion(apiKey, databaseId, gmailId) {
 
 export async function writeDealToNotion(notion, databaseId, deal, gmailId, options = {}) {
   const {
-    name = `${deal.brand || "Unknown"} Post`,
+    name = deal.brand || "Unknown",
     date = deal.posting_date,
   } = options;
 
