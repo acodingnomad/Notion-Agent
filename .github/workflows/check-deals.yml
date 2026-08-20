@@ -2,11 +2,9 @@ name: Check Brand Deals
 
 on:
   schedule:
-    # GitHub Actions cron is UTC-only. Times below target PST (UTC-8); during
-    # PDT (summer, UTC-7) they land one hour later.
-    # 2 runs/day: 9 AM, 5 PM PST
-    #   -> UTC 17:00, 01:00
-    - cron: '0 1,17 * * *'
+    # Once daily at 9 AM Pacific, with daylight-saving time handled by GitHub.
+    - cron: '0 9 * * *'
+      timezone: "America/Los_Angeles"
   workflow_dispatch:
 
 jobs:
@@ -32,3 +30,4 @@ jobs:
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
           GMAIL_REDIRECT_URI: ${{ secrets.GMAIL_REDIRECT_URI }}
           GMAIL_LABEL: ${{ secrets.GMAIL_LABEL }}
+          GMAIL_IGNORED_THREAD_IDS: ${{ secrets.GMAIL_IGNORED_THREAD_IDS }}

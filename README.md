@@ -2,9 +2,9 @@
 
 Reads brand-deal emails from Gmail and adds new deals to the **Notion Brand Deal Calendar**.
 
-**What it does:** finds new deals in the Gmail `In progress` label and creates one entry per post/deliverable in Notion, with `Deal Stage` and `Progress Status` both set to `Not started`. Deal progress after that is handled by native Notion automations — this agent only creates the entries.
+**What it does:** finds new deals in the configured Gmail label (currently `1. In progress`) and creates one entry per post/deliverable in Notion, with `Deal Stage` and `Progress Status` both set to `Not started`. Deal progress after that is handled by native Notion automations — this agent only creates the entries.
 
-Runs automatically via GitHub Actions **twice a day: 9 AM and 5 PM PST**. Emails already turned into deals are skipped before the AI step to keep costs low.
+Runs automatically via GitHub Actions **once a day at 9 AM Pacific**. Emails already turned into deals are skipped before the AI step to keep costs low.
 
 ---
 
@@ -28,7 +28,7 @@ Add `--filter="<brand>"` to only process emails whose subject contains that text
 npm start -- --dry-run --filter="Indeed"
 ```
 
-### Gmail authorization (only if login expires)
+### Gmail authorization (when switching accounts or if login expires)
 
 If a run fails with an `invalid_grant` / expired-token error:
 
@@ -36,12 +36,26 @@ If a run fails with an `invalid_grant` / expired-token error:
 npm run auth
 ```
 
-Then copy the new refresh token into `.env` as `GMAIL_REFRESH_TOKEN`, and also update the `GMAIL_REFRESH_TOKEN` secret in the GitHub repo (Settings → Secrets and variables → Actions).
+In the Google authorization window, choose the Gmail account the agent should
+read (currently `khrissheer@gmail.com`) and approve read-only Gmail access.
+Then copy the new refresh token into `.env` as `GMAIL_REFRESH_TOKEN`, and also
+replace the `GMAIL_REFRESH_TOKEN` secret in the GitHub repo (Settings → Secrets
+and variables → Actions). The Gmail client ID, client secret, redirect URI,
+and all Notion settings can stay the same. Update `GMAIL_LABEL` only when the
+new mailbox uses a different exact label name.
+
+Before the first live run, make sure the watched label exists in the new Gmail
+account and has the same spelling as `GMAIL_LABEL` (currently `1. In progress`).
+
+Deals migrated from another Gmail account can be protected with
+`GMAIL_IGNORED_THREAD_IDS`. Add the existing Gmail thread IDs as a
+comma-separated list; the agent skips those conversations before calling AI or
+checking Notion, including any future replies in the same conversation.
 
 ### Run on your own Mac on a schedule (optional — GitHub Actions already does this)
 
 ```bash
-npm run schedule            # keep it running in a terminal (9 AM & 5 PM PST)
+npm run schedule            # keep it running in a terminal (9 AM Pacific)
 npm run schedule:install    # install as a background service (launchd)
 npm run schedule:status     # check the background service
 npm run schedule:logs       # tail the logs
@@ -52,7 +66,7 @@ npm run schedule:uninstall  # remove the background service
 
 ## Running it on GitHub (the automatic schedule)
 
-- The schedule lives in `.github/workflows/check-deals.yml` (2 runs/day: 9 AM & 5 PM PST).
+- The schedule lives in `.github/workflows/check-deals.yml` (once daily at 9 AM Pacific).
 - **Run it manually anytime:** GitHub repo → **Actions** tab → **Check Brand Deals** → **Run workflow**.
 - **See what it added:** same Actions tab → click the latest run → open the logs.
 
@@ -60,7 +74,7 @@ npm run schedule:uninstall  # remove the background service
 
 ## How a new deal is created
 
-For each new email in the `In progress` label, the agent uses AI to extract the brand, platforms, rate, posting date, deliverables, and number of posts, then creates one Notion entry per post:
+For each new email in the configured Gmail label, the agent uses AI to extract the brand, platforms, rate, posting date, deliverables, and number of posts, then creates one Notion entry per post:
 
 | Property | Value |
 |---|---|
@@ -81,5 +95,6 @@ Duplicate protection: the exact email is skipped if it was already turned into a
 | Variable | Meaning | Default |
 |---|---|---|
 | `GMAIL_LABEL` | Gmail label to watch | `In progress` |
+| `GMAIL_IGNORED_THREAD_IDS` | Existing Gmail conversations to skip | empty |
 
 Everything else in `.env` is credentials (Gmail, Anthropic, Notion) — keep them secret. `.env` is gitignored and never committed.

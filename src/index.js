@@ -2,6 +2,7 @@ import "dotenv/config";
 import { createGmailClient, getLabelId, getEmailsByLabel } from "./gmail.js";
 import { extractBrandDeal } from "./extract.js";
 import { createNotionClient, writeDealToNotion, dealExistsInNotion, getExistingBrandEntries } from "./notion.js";
+import { isIgnoredThread, parseIgnoredThreadIds } from "./ignore.js";
 
 function addDays(dateStr, days) {
   const d = new Date(dateStr);
@@ -35,6 +36,9 @@ export async function main() {
   const notion = createNotionClient(process.env.NOTION_API_KEY);
   const databaseId = process.env.NOTION_DATABASE_ID?.split("?")[0];
   const labelName = process.env.GMAIL_LABEL || "in progress";
+  const ignoredThreadIds = parseIgnoredThreadIds(
+    process.env.GMAIL_IGNORED_THREAD_IDS
+  );
 
   console.log(`Fetching emails with label "${labelName}"...`);
   let labelId, emails;
@@ -73,6 +77,11 @@ export async function main() {
   for (const email of dedupedEmails) {
     try {
       console.log(`Processing: ${email.subject}`);
+
+      if (isIgnoredThread(email, ignoredThreadIds)) {
+        console.log(`  -> Existing migrated Gmail thread, skipping.`);
+        continue;
+      }
 
       if (filter && !email.subject.toLowerCase().includes(filter.toLowerCase())) {
         continue;
