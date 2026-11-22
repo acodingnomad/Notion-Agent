@@ -3,6 +3,7 @@ import { createGmailClient, getLabelId, getEmailsByLabel } from "./gmail.js";
 import { extractBrandDeal } from "./extract.js";
 import { createNotionClient, writeDealToNotion, dealExistsInNotion, getExistingBrandEntries } from "./notion.js";
 import { isIgnoredThread, parseIgnoredThreadIds } from "./ignore.js";
+import { formatsForPost } from "./formats.js";
 
 function addDays(dateStr, days) {
   const d = new Date(dateStr);
@@ -132,6 +133,7 @@ export async function main() {
           date: addDays(baseDate, i * 7),
           rate: perPostRate,
           platforms: platformsForPost(i),
+          formats: formatsForPost(deal, i, platformsForPost(i)),
         });
       }
 
@@ -153,9 +155,14 @@ export async function main() {
       }
 
       for (const entry of entriesToWrite) {
-        const entryDeal = { ...deal, rate: entry.rate, platforms: entry.platforms ?? deal.platforms };
+        const entryDeal = {
+          ...deal,
+          rate: entry.rate,
+          platforms: entry.platforms ?? deal.platforms,
+          formats: entry.formats,
+        };
         if (dryRun) {
-          console.log(`  -> [dry run] ${entry.name} | ${entry.date} | platforms: [${(entry.platforms || []).join(", ")}] | price: ${entry.rate != null}`);
+          console.log(`  -> [dry run] ${entry.name} | ${entry.date} | platforms: [${(entry.platforms || []).join(", ")}] | formats: [${(entry.formats || []).join(", ")}] | price: ${entry.rate != null}`);
         } else {
           await writeDealToNotion(notion, databaseId, entryDeal, email.id, {
             name: entry.name,

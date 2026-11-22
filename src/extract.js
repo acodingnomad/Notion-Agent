@@ -10,6 +10,17 @@ const SYSTEM_PROMPT = `You extract brand deal information from emails. Return a 
 - deliverables: string — copy the full email body (excluding greeting/salutation and closing sign-off/name block). Include everything: deliverables, usage rights, exclusivity, creative briefs, rate, and all other details. IMPORTANT: strip all markdown formatting — remove asterisks (*), underscores (_), and any other markup. Use plain dashes (- ) for bullet points. Use ALL CAPS or a colon for section headers (e.g. "DELIVERABLES:" not "*Deliverables:*"). Output clean, readable plain text.
 - rate: number | null — the monetary rate mentioned as a plain number without $ sign (e.g. 12000), or null if not mentioned
 - post_count: number — the total number of individual content posts/videos required (e.g. "3x Reels" = 3, "2x TikToks" = 2). Default to 1 if not explicitly stated.
+- formats_by_post: string[][] — one array for each entry counted in post_count, in the same order. Valid values are only "9:16", "16:9", "4:5", "Story Set", and "raw".
+
+  FORMAT RULES:
+  - Use "9:16" for vertical video deliverables such as Instagram Reels, TikToks, and YouTube Shorts.
+  - Use "16:9" for standard horizontal YouTube videos or integrations.
+  - Use "4:5" for Instagram Carousel deliverables or when a 4:5 feed format is explicitly required.
+  - Use "Story Set" when Instagram Story frames or a story set are required. Attach it to the corresponding video entry when stories are add-ons.
+  - Use "raw" only when raw footage/files are explicitly required; never infer it merely because the content is UGC.
+  - A post can have multiple formats (for example, a Reel plus Story Set is ["9:16", "Story Set"]).
+  - Use an empty array when no allowed format can be determined. Never invent another value.
+  - formats_by_post must contain exactly post_count arrays.
 
   IMPORTANT: An Instagram Story is an add-on, not a separate post. Do NOT count a story as its own post when the deal also includes at least one video deliverable. Examples:
   - 1 Reel + 1 Story → post_count = 1 (story rides on the post)

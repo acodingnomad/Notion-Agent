@@ -49,7 +49,8 @@ export async function writeDealToNotion(notion, databaseId, deal, gmailId, optio
     Name: { title: [{ text: { content: name } }] },
     "Deal Stage": { status: { name: "Not started" } },
     "Progress Status": { status: { name: "Not started" } },
-    Platforms: { multi_select: (deal.platforms || []).map((p) => ({ name: p })) },
+    "Deliverable Type": { multi_select: (deal.platforms || []).map((p) => ({ name: p })) },
+    Format: { multi_select: (deal.formats || []).map((format) => ({ name: format })) },
     Deliverables: { rich_text: [{ text: { content: truncate(deal.deliverables || "") } }] },
     "Gmail ID": { rich_text: [{ text: { content: gmailId } }] },
   };

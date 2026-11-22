@@ -74,14 +74,15 @@ npm run schedule:uninstall  # remove the background service
 
 ## How a new deal is created
 
-For each new email in the configured Gmail label, the agent uses AI to extract the brand, platforms, rate, posting date, deliverables, and number of posts, then creates one Notion entry per post:
+For each new email in the configured Gmail label, the agent uses AI to extract the brand, platforms, formats, rate, posting date, deliverables, and number of posts, then creates one Notion entry per post:
 
 | Property | Value |
 |---|---|
 | Name | `{Brand}` (or `{Brand} 1`, `{Brand} 2`, … for multi-post deals) |
 | Deal Stage | `Not started` |
 | Progress Status | `Not started` |
-| Platforms | extracted from the email (Story rides on post 1) |
+| Deliverable Type | extracted from the email (Story rides on post 1) |
+| Format | per-post `9:16`, `16:9`, `4:5`, `Story Set`, and/or explicitly requested `raw` footage |
 | Price | per-post rate × 0.8 |
 | Posting Date | from the email, or ~2 weeks out, spaced a week apart per post |
 | Deliverables / Gmail ID | filled in for reference + de-duplication |
