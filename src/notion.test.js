@@ -1,6 +1,47 @@
 import { describe, it, mock, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { dealExistsInNotion, getExistingBrandEntries } from "./notion.js";
+import { dealExistsInNotion, getExistingBrandEntries, writeDealToNotion } from "./notion.js";
+
+describe("writeDealToNotion", () => {
+  it("writes Format as a Notion multi-select", async () => {
+    let request;
+    const notion = {
+      pages: {
+        create: mock.fn(async (payload) => {
+          request = payload;
+          return { id: "page-123" };
+        }),
+      },
+    };
+
+    await writeDealToNotion(
+      notion,
+      "database-123",
+      {
+        brand: "Example",
+        platforms: ["Instagram Reel", "Instagram Story"],
+        formats: ["9:16", "Story Set", "raw"],
+        deliverables: "One Reel, one Story Set, and raw footage.",
+      },
+      "gmail-123"
+    );
+
+    assert.deepStrictEqual(request.properties.Format, {
+      multi_select: [
+        { name: "9:16" },
+        { name: "Story Set" },
+        { name: "raw" },
+      ],
+    });
+    assert.deepStrictEqual(request.properties["Deliverable Type"], {
+      multi_select: [
+        { name: "Instagram Reel" },
+        { name: "Instagram Story" },
+      ],
+    });
+    assert.equal(request.properties.Platforms, undefined);
+  });
+});
 
 describe("dealExistsInNotion", () => {
   let originalFetch;
