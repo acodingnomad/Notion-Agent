@@ -13,6 +13,10 @@ const SYSTEM_PROMPT = `You extract brand deal information from emails. Return a 
 - formats_by_post: string[][] — one array for each entry counted in post_count, in the same order. Valid values are only "9:16", "16:9", "4:5", "Story Set", and "raw".
 
   FORMAT RULES:
+  - Capture every required aspect ratio listed for a video, regardless of platform. Multiple exports of the same video count as one video.
+  - When the email says "Each video delivered in 3 formats: 9:16, 16:9 and 4:5", include ["9:16", "16:9", "4:5"] in formats_by_post for each covered video. If a requirement names a specific video, apply it only to that video.
+  - Recognize equivalent export dimensions: 1080x1920 → "9:16", 1920x1080 → "16:9", and 1080x1350 → "4:5".
+  - For example, "one 1080x1920 Reel plus three IG Story frames; send the original unedited clips too" gives ["9:16", "Story Set", "raw"] for that Reel. A request for unedited source clips alone gives ["raw"].
   - Use "9:16" for vertical video deliverables such as Instagram Reels, TikToks, and YouTube Shorts.
   - Use "16:9" for standard horizontal YouTube videos or integrations.
   - Use "4:5" for Instagram Carousel deliverables or when a 4:5 feed format is explicitly required.
